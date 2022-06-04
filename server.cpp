@@ -37,7 +37,6 @@ int create_socket()
     }
 
     
-
     return sock;
 }
 
@@ -138,6 +137,7 @@ void *display(void *ptr)
         if ((bytes = send(socket, imgGray.data, imgSize, 0)) < 0)
         {
             std::cerr << "bytes = " << bytes << std::endl;
+            close(socket);
             break;
         }
     }
