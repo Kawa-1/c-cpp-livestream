@@ -24,13 +24,19 @@ VideoCapture cap(capDev); // open the default camera
 int create_socket()
 {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock < 0)
+    if (sock < 0)
     {
         perror("socket() call failed!!");
         exit(1);
     }
 
-    // TODO: set socket options
+    int sndbuf = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &sndbuf, sizeof(sndbuf)) < 0)
+    {
+        perror("SO_REUSEADDR setsockopt error :)");
+    }
+
+    
 
     return sock;
 }
