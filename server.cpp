@@ -21,12 +21,22 @@ int capDev = 0;
 
 VideoCapture cap(capDev); // open the default camera
 
+int create_socket()
+{
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock < 0)
+    {
+        perror("socket() call failed!!");
+        exit(1);
+    }
+
+    // TODO: set socket options
+
+    return sock;
+}
+
 int main(int argc, char **argv)
 {
-
-    //--------------------------------------------------------
-    // networking stuff: socket, bind, listen
-    //--------------------------------------------------------
     int localSocket,
         remoteSocket,
         port = 4097;
@@ -50,12 +60,7 @@ int main(int argc, char **argv)
     if (argc == 2)
         port = atoi(argv[1]);
 
-    localSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (localSocket == -1)
-    {
-        perror("socket() call failed!!");
-    }
-
+    localSocket = create_socket();
     localAddr.sin_family = AF_INET;
     localAddr.sin_addr.s_addr = INADDR_ANY;
     localAddr.sin_port = htons(port);
@@ -75,13 +80,7 @@ int main(int argc, char **argv)
     // accept connection from an incoming client
     while (1)
     {
-        // if (remoteSocket < 0) {
-        //     perror("accept failed!");
-        //     exit(1);
-        // }
-
         remoteSocket = accept(localSocket, (struct sockaddr *)&remoteAddr, (socklen_t *)&addrLen);
-        // std::cout << remoteSocket<< "32"<< std::endl;
         if (remoteSocket < 0)
         {
             perror("accept failed!");
@@ -89,11 +88,7 @@ int main(int argc, char **argv)
         }
         std::cout << "Connection accepted" << std::endl;
         pthread_create(&thread_id, NULL, display, &remoteSocket);
-
-        // pthread_join(thread_id,NULL);
     }
-    // pthread_join(thread_id,NULL);
-    // close(remoteSocket);
 
     return 0;
 }
@@ -114,7 +109,6 @@ void *display(void *ptr)
 
     int imgSize = img.total() * img.elemSize();
     int bytes = 0;
-    int key;
 
     // make img continuos
     if (!img.isContinuous())
