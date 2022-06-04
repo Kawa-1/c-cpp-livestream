@@ -4,7 +4,7 @@
  * by Steve Tuenkam
  */
 
-#include "opencv2/opencv.hpp"
+#include "opencv4/opencv2/opencv.hpp"
 #include <sys/socket.h> 
 #include <arpa/inet.h>
 #include <unistd.h>

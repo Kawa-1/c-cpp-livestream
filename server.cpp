@@ -129,7 +129,7 @@ void *display(void *ptr){
                 cap >> img;
             
                 //do video processing here 
-                cvtColor(img, imgGray, CV_BGR2GRAY);
+                cvtColor(img, imgGray, cv::COLOR_BGR2GRAY);
 
                 //send processed image
                 if ((bytes = send(socket, imgGray.data, imgSize, 0)) < 0){
