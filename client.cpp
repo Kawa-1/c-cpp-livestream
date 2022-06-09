@@ -50,6 +50,8 @@ int main(int argc, char** argv)
 
     serverIP   = argv[1];
     serverPort = atoi(argv[2]);
+    socklen_t len;
+    struct timeval delay;
 
     std::regex e("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
 
@@ -72,10 +74,19 @@ int main(int argc, char** argv)
     serverAddr.sin_addr.s_addr = inet_addr(serverIP);
     serverAddr.sin_port = htons(serverPort);
 
+    delay.tv_sec = 3; 
+	delay.tv_usec = 1; 
+	len = sizeof(delay);
+	if( setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &delay, len) == -1 ){
+		fprintf(stderr,"SO_RCVTIMEO setsockopt error : %s\n", strerror(errno));
+		return -1;
+	}
+
     if (connect(sockfd, (sockaddr*)&serverAddr, addrLen) < 0) {
         std::cerr << "connect() failed!" << std::endl;
     }
 
+    
     m_signal(SIGINT, sig_int);
 
     //----------------------------------------------------------
@@ -96,12 +107,11 @@ int main(int argc, char** argv)
         
     std::cout << "Image Size:" << imgSize << std::endl;
 
-
     namedWindow("CV Video Client",1);
 
     while (key != 'q') {
 
-        if ((bytes = recv(sockfd, iptr, imgSize , MSG_WAITALL)) == -1) {
+        if ((bytes = recv(sockfd, iptr, imgSize, MSG_WAITALL)) == -1) {
             std::cerr << "recv failed, received bytes = " << bytes << std::endl;
         }
         
