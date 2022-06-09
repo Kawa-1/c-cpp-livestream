@@ -50,8 +50,7 @@ int create_socket()
 
 int main(int argc, char **argv)
 {
-    int localSocket,
-        remoteSocket,
+    int remoteSocket,
         port = 4097;
     int nready;
 
