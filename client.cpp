@@ -15,16 +15,15 @@
 using namespace cv;
 
 
-#define M_ALARM
-#ifdef M_ALARM
-
 int         sockfd;
 char*       serverIP;
 int         serverPort;
 
-void sig_alarm(int signo)
+void sig_int(int signo)
 {
-   printf("Received SIGALARM = %d\n", signo);
+   printf("Received SIG = %d\n", signo);
+   close(sockfd);
+   exit(0);
 }
 
 int m_signal(int signum, void handler(int)){
@@ -40,7 +39,6 @@ int m_signal(int signum, void handler(int)){
     }
     return 0;
 }
-#endif
 
 
 int main(int argc, char** argv)
@@ -78,6 +76,7 @@ int main(int argc, char** argv)
         std::cerr << "connect() failed!" << std::endl;
     }
 
+    m_signal(SIGINT, sig_int);
 
     //----------------------------------------------------------
     //OpenCV Code
