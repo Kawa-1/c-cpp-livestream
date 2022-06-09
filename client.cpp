@@ -9,7 +9,8 @@
 #include <sys/socket.h> 
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <regex.h>
+#include <signal.h>
+#include <regex>
 
 using namespace cv;
 
@@ -50,18 +51,15 @@ int main(int argc, char** argv)
     }
 
     serverIP   = argv[1];
-    serverPort = argv[2];
+    serverPort = atoi(argv[2]);
 
-    if (!(regex_match(serverPort, "^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"))){
-        perror("Regex of serverPort doesn't match");
-        exit(1);
-    }
+    std::regex e("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
 
-    if (!(regex_match(serverIP, "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"))){
-        perror("Regex of serverIP doesn't match");
-        exit(1);
-    }
-
+     if (!(std::regex_match(serverIP, e))){
+         perror("Regex of serverIP doesn't match");
+         exit(1);
+     }
+    
 
     struct  sockaddr_in serverAddr;
     socklen_t           addrLen = sizeof(struct sockaddr_in);
@@ -70,14 +68,13 @@ int main(int argc, char** argv)
         std::cerr << "socket() failed" << std::endl;
     }
 
-    serverPort = atoi(serverPort);
 
-    bzero(&servAddr, sizeof(serverAddr));
+    bzero(&serverAddr, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = inet_addr(serverIP);
     serverAddr.sin_port = htons(serverPort);
 
-    if (connect(sokt, (sockaddr*)&serverAddr, addrLen) < 0) {
+    if (connect(sockfd, (sockaddr*)&serverAddr, addrLen) < 0) {
         std::cerr << "connect() failed!" << std::endl;
     }
 
@@ -105,7 +102,7 @@ int main(int argc, char** argv)
 
     while (key != 'q') {
 
-        if ((bytes = recv(sokt, iptr, imgSize , MSG_WAITALL)) == -1) {
+        if ((bytes = recv(sockfd, iptr, imgSize , MSG_WAITALL)) == -1) {
             std::cerr << "recv failed, received bytes = " << bytes << std::endl;
         }
         
