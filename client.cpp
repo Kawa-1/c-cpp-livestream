@@ -14,7 +14,6 @@
 
 using namespace cv;
 
-
 int         sockfd;
 char*       serverIP;
 int         serverPort;
