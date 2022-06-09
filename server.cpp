@@ -9,13 +9,21 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
+#include <sys/epoll.h>
 #include <net/if.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
+
+#define MAXEVENTS 10
+#define LISTENQ 10
 
 using namespace cv;
 
-void *display(void *);
+static int epollfd;
+static int localSocket;
+
+void display(void *);
 
 int capDev = 0;
 
@@ -45,16 +53,20 @@ int main(int argc, char **argv)
     int localSocket,
         remoteSocket,
         port = 4097;
+    int nready;
 
     struct sockaddr_in localAddr,
         remoteAddr;
-    pthread_t thread_id;
+    struct epoll_event events[MAXEVENTS];
+    struct epoll_event ev;
 
     int addrLen = sizeof(struct sockaddr_in);
 
+    signal(SIGPIPE, SIG_IGN);
+
     if ((argc > 1) && (strcmp(argv[1], "-h") == 0))
     {
-        std::cerr << "usage: ./cv_video_srv [port] [capture device]\n"
+        std::cerr << "usage: ./server [port] [capture device]\n"
                   << "port           : socket port (4097 default)\n"
                   << "capture device : (0 default)\n"
                   << std::endl;
@@ -76,8 +88,25 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    if ((epollfd = epoll_create(MAXEVENTS)) < 0)
+    {
+        perror("Epoll create error:");
+        return 1;
+    }
+
+    ev.events = EPOLLIN;
+    ev.data.fd = localSocket;
+
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, localSocket, &ev) == -1)
+    {
+        perror("Epol ctl error: ");
+        return 1;
+    }
+
+    
+
     // Listening
-    listen(localSocket, 3);
+    listen(localSocket, LISTENQ);
 
     std::cout << "Waiting for connections...\n"
               << "Server Port:" << port << std::endl;
@@ -85,22 +114,51 @@ int main(int argc, char **argv)
     // accept connection from an incoming client
     while (1)
     {
-        remoteSocket = accept(localSocket, (struct sockaddr *)&remoteAddr, (socklen_t *)&addrLen);
-        if (remoteSocket < 0)
+        if ((nready = epoll_wait(epollfd, events, MAXEVENTS, -1)) == -1)
         {
-            perror("accept failed!");
-            exit(1);
+            perror("Epoll listen wait error: ");
+            return 1;
         }
-        std::cout << "Connection accepted" << std::endl;
-        pthread_create(&thread_id, NULL, display, &remoteSocket);
+
+        for (int i=0; i<nready; i++)
+        {
+            if (events[i].data.fd == localSocket)
+            {   
+                printf("Local socket: %d\n", events[i].data.fd);
+                if ((remoteSocket = accept(localSocket, (struct sockaddr *)&remoteAddr, (socklen_t *)&addrLen)) < 0)
+                {
+                    perror("Accept error: ");
+                }
+                else 
+                {
+                    ev.events = EPOLLOUT;
+                    ev.data.fd = remoteSocket;
+                    printf("Remote socket fd after accept: %d\n", remoteSocket);
+                    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, remoteSocket, &ev) == -1)
+                    {
+                        perror("Epol ctl error after accept: ");
+                        continue;
+                    }
+                }
+            }
+            else
+            {
+                remoteSocket = events[i].data.fd;
+                printf("FD: %d\n", remoteSocket);
+                display(&remoteSocket);
+            }
+        }
     }
 
+    printf("Jak to tutaj doszlo?????\n");
+    close(localSocket);
     return 0;
 }
 
-void *display(void *ptr)
+void display(void *ptr)
 {
     int socket = *(int *)ptr;
+    printf("Display FD: %d \n", socket);
     // OpenCV Code
     //----------------------------------------------------------
 
@@ -124,21 +182,17 @@ void *display(void *ptr)
 
     std::cout << "Image Size:" << imgSize << std::endl;
 
-    while (1)
+    /* get a frame from camera */
+    cap >> img;
+
+    // do video processing here
+    cvtColor(img, imgGray, cv::COLOR_BGR2GRAY);
+
+    // send processed image
+    if ((bytes = send(socket, imgGray.data, imgSize, 0)) < 0)
     {
-
-        /* get a frame from camera */
-        cap >> img;
-
-        // do video processing here
-        cvtColor(img, imgGray, cv::COLOR_BGR2GRAY);
-
-        // send processed image
-        if ((bytes = send(socket, imgGray.data, imgSize, 0)) < 0)
-        {
-            std::cerr << "bytes = " << bytes << std::endl;
-            close(socket);
-            break;
-        }
+        //std::cerr << "bytes = " << bytes << std::endl;
+        //perror("Error send: ");
+        close(socket);
     }
 }
