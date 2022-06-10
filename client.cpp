@@ -110,8 +110,7 @@ int main(int argc, char** argv)
 
     while (key != 'q') {
 
-        // I/O
-        if ((bytes = read(sockfd, iptr, imgSize)) == -1) {
+        if ((bytes = recv(sockfd, iptr, imgSize, MSG_WAITALL)) == -1) {
             std::cerr << "recv failed, received bytes = " << bytes << std::endl;
         }
         
